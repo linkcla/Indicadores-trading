@@ -1,0 +1,145 @@
+//Author: M. Link
+
+//@version=5
+indicator("Imbalance + 3EMA"
+  , overlay = true
+  , max_boxes_count = 500
+  , max_labels_count = 500
+  , max_lines_count = 500)
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+//EMAs
+show_ema1 = input(true
+  , ''
+  , inline = 'EMA1'
+  , group = 'EMAs')
+ema1_length = input.int(10
+  , 'Length'
+  , inline = 'EMA1'
+  , group = 'EMAs'
+  , minval = 1
+  , maxval = 200)
+ema1_color = input.color(#057595ac, ''
+  , inline = 'EMA1'
+  , group = 'EMAs')
+//---
+show_ema2 = input(true
+  , ''
+  , inline = 'EMA2'
+  , group = 'EMAs')
+ema2_length = input.int(50
+  , 'Length'
+  , inline = 'EMA2'
+  , group = 'EMAs'
+  , minval = 1
+  , maxval = 200)
+ema2_color = input.color(#b55d04ac, ''
+  , inline = 'EMA2'
+  , group = 'EMAs')
+//---
+show_ema3 = input(true
+  , ''
+  , inline = 'EMA3'
+  , group = 'EMAs')
+ema3_length = input.int(200
+  , 'Length'
+  , inline = 'EMA3'
+  , group = 'EMAs'
+  , minval = 1
+  , maxval = 200)
+ema3_color = input.color(#ff00aaac, ''
+  , inline = 'EMA3'
+  , group = 'EMAs')
+
+//Fair Value Gaps
+show_fvg = input(true, 'Show Fair Value Gaps (FVG)'
+  , inline = 'fvg'
+  , group = 'Fair Value Gaps')
+
+fvg_color = input.color(#ffff00bf, ''
+  , inline = 'fvg'
+  , group = 'Fair Value Gaps')
+
+//Opening Gaps
+show_og = input(true, 'Show Opening Gaps (OG)'
+  , inline = 'og'
+  , group = 'Opening Gaps')
+
+og_color = input.color(#ffb700, ''
+  , inline = 'og'
+  , group = 'Opening Gaps')
+
+//-----------------------------------------------------------------------------}
+//Functions
+//-----------------------------------------------------------------------------{
+n = bar_index
+
+//Detect imbalance
+imbalance_detection(show, condition)=> [show and condition ]
+
+//Generate EMAs
+ema1 = ta.ema(close, ema1_length)
+ema2 = ta.ema(close, ema2_length)
+ema3 = ta.ema(close, ema3_length)
+
+//-----------------------------------------------------------------------------}
+//EMAs
+//-----------------------------------------------------------------------------{
+//EMA1
+plot(show_ema1 ? ema1 : na, color= ema1_color, title="EMA 1")
+//EMA2
+plot(show_ema2 ? ema2 : na, color= ema2_color, title="EMA 2")
+//EMA3
+plot(show_ema3 ? ema3 : na, color= ema3_color, title="EMA 3")
+
+//-----------------------------------------------------------------------------}
+//Opening Gaps
+//-----------------------------------------------------------------------------{
+//Bullish
+bull_gap_top = math.min(close, open)
+bull_gap_btm = math.max(close[1], open[1])
+
+[bull_og] = imbalance_detection(
+  show_og
+  , low > high[1])
+
+
+//Bullish
+bear_gap_top = math.min(close[1], open[1])
+bear_gap_btm = math.max(close, open)
+
+[bear_og] = imbalance_detection(
+  show_og
+  , high < low[1])
+
+
+if bull_og
+    box.new(n-1, bull_gap_top, n, bull_gap_btm, border_color = na, bgcolor = color.new(og_color, 50), text = 'OG', text_color = chart.fg_color)
+
+if bear_og
+    box.new(n-1, bear_gap_top, n, bear_gap_btm, border_color = na, bgcolor = color.new(og_color, 50), text = 'OG', text_color = chart.fg_color)
+//-----------------------------------------------------------------------------}
+//Fair Value Gaps
+//-----------------------------------------------------------------------------{
+//Bullish
+[bull_fvg] = imbalance_detection(
+  show_fvg
+  , low > high[2] and close[1] > high[2] and not (bull_og or bull_og[1]))
+
+
+//Bearish
+[bear_fvg] = imbalance_detection(
+  show_fvg
+  , high < low[2] and close[1] < low[2] and not (bear_og or bear_og[1]))
+
+
+if bull_fvg
+    avg = math.avg(low, high[2])
+    
+    box.new(n-1, low, n, high[2], border_color = na, bgcolor = fvg_color)
+    
+if bear_fvg
+    avg = math.avg(low[2], high)
+
+    box.new(n-1, low[2], n, high, border_color = na, bgcolor = fvg_color)
