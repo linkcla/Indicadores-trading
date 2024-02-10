@@ -1,0 +1,270 @@
+//Author: M. Link
+
+//@version=5
+indicator("Imbalance + 3EMA + Volume profile"
+  , overlay = true
+  , max_boxes_count = 500
+  , max_labels_count = 500
+  , max_lines_count = 500)
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+//EMAs
+show_ema1 = input(true
+  , ''
+  , inline = 'EMA1'
+  , group = 'EMAs')
+ema1_length = input.int(10
+  , 'Length'
+  , inline = 'EMA1'
+  , group = 'EMAs'
+  , minval = 1
+  , maxval = 200)
+ema1_color = input.color(#057595ac, ''
+  , inline = 'EMA1'
+  , group = 'EMAs')
+//---
+show_ema2 = input(true
+  , ''
+  , inline = 'EMA2'
+  , group = 'EMAs')
+ema2_length = input.int(50
+  , 'Length'
+  , inline = 'EMA2'
+  , group = 'EMAs'
+  , minval = 1
+  , maxval = 200)
+ema2_color = input.color(#b55d04ac, ''
+  , inline = 'EMA2'
+  , group = 'EMAs')
+//---
+show_ema3 = input(true
+  , ''
+  , inline = 'EMA3'
+  , group = 'EMAs')
+ema3_length = input.int(200
+  , 'Length'
+  , inline = 'EMA3'
+  , group = 'EMAs'
+  , minval = 1
+  , maxval = 200)
+ema3_color = input.color(#ff00aaac, ''
+  , inline = 'EMA3'
+  , group = 'EMAs')
+
+//Fair Value Gaps
+show_fvg = input(true, 'Show Fair Value Gaps (FVG)'
+  , inline = 'fvg'
+  , group = 'Fair Value Gaps')
+
+fvg_color = input.color(#ffff00bf, ''
+  , inline = 'fvg'
+  , group = 'Fair Value Gaps')
+
+//Opening Gaps
+show_og = input(true, 'Show Opening Gaps (OG)'
+  , inline = 'og'
+  , group = 'Opening Gaps')
+
+og_color = input.color(#ffb700, ''
+  , inline = 'og'
+  , group = 'Opening Gaps')
+
+//Volume profile
+show_vp = input(true
+  , 'Show Volume profile'
+  , group = 'Volume profile')
+vp_lookback = input.int(defval=200
+  , title='Volume Lookback Depth [10-200]'
+  , group = 'Volume profile'
+  , minval=10
+  , maxval=200)
+
+vp_max_bars = input.int(defval=200
+  , title='Number of Bars [10-200]'
+  , group = 'Volume profile'
+  , minval=10
+  , maxval=200)
+
+vp_bar_mult = input.int(defval=40
+  , title='Bar Length Multiplier [10-100]'
+  , group = 'Volume profile'
+  , minval=10
+  , maxval=100)
+
+vp_bar_offset = input.int(defval=55
+  , title='Bar Horizontal Offset [0-150]'
+  , group = 'Volume profile'
+  , minval=0
+  , maxval=150)
+
+vp_bar_width = input.int(defval=2
+  , title='Bar Width [1-20]'
+  , group = 'Volume profile'
+  , minval=1
+  , maxval=20)
+
+vp_delta_type = input.string(defval='Both'
+  , title='Delta Type'
+  , options=['Both', 'Bullish', 'Bearish']
+  , group = 'Volume profile')
+
+vp_poc_show = input(defval=true
+  , title='Show POC Line'
+  , group = 'Volume profile')
+
+vp_bar_color = input(defval=color.new(color.blue, 50)
+  , title='Bar Color'
+  , group = 'Volume profile')
+
+vp_poc_color = input(defval=color.white
+  , title='POC Color'
+  , group = 'Volume profile')
+
+//-----------------------------------------------------------------------------}
+//Variables
+//-----------------------------------------------------------------------------{
+//Volume profile
+float vp_Vmax = 0.0
+int vp_VmaxId = 0
+int vp_N_BARS = vp_max_bars
+
+var int vp_first = time
+
+vp_a_P = array.new_float(vp_N_BARS + 1, 0.0)
+vp_a_V = array.new_float(vp_N_BARS, 0.0)
+vp_a_D = array.new_float(vp_N_BARS, 0.0)
+vp_a_W = array.new_int(vp_N_BARS, 0)
+
+//-----------------------------------------------------------------------------}
+//Functions
+//-----------------------------------------------------------------------------{
+n = bar_index
+
+//Detect imbalance
+imbalance_detection(show, condition)=> [show and condition ]
+
+//Generate EMAs
+ema1 = ta.ema(close, ema1_length)
+ema2 = ta.ema(close, ema2_length)
+ema3 = ta.ema(close, ema3_length)
+
+//-----------------------------------------------------------------------------}
+//EMAs
+//-----------------------------------------------------------------------------{
+//EMA1
+plot(show_ema1 ? ema1 : na, color= ema1_color, title="EMA 1")
+//EMA2
+plot(show_ema2 ? ema2 : na, color= ema2_color, title="EMA 2")
+//EMA3
+plot(show_ema3 ? ema3 : na, color= ema3_color, title="EMA 3")
+
+//-----------------------------------------------------------------------------}
+//Opening Gaps
+//-----------------------------------------------------------------------------{
+//Bullish
+bull_gap_top = math.min(close, open)
+bull_gap_btm = math.max(close[1], open[1])
+
+[bull_og] = imbalance_detection(
+  show_og
+  , low > high[1])
+
+
+//Bullish
+bear_gap_top = math.min(close[1], open[1])
+bear_gap_btm = math.max(close, open)
+
+[bear_og] = imbalance_detection(
+  show_og
+  , high < low[1])
+
+
+if bull_og
+    box.new(n-1, bull_gap_top, n, bull_gap_btm, border_color = na, bgcolor = color.new(og_color, 50), text = 'OG', text_color = chart.fg_color)
+
+if bear_og
+    box.new(n-1, bear_gap_top, n, bear_gap_btm, border_color = na, bgcolor = color.new(og_color, 50), text = 'OG', text_color = chart.fg_color)
+//-----------------------------------------------------------------------------}
+//Fair Value Gaps
+//-----------------------------------------------------------------------------{
+//Bullish
+[bull_fvg] = imbalance_detection(
+  show_fvg
+  , low > high[2] and close[1] > high[2] and not (bull_og or bull_og[1]))
+
+
+//Bearish
+[bear_fvg] = imbalance_detection(
+  show_fvg
+  , high < low[2] and close[1] < low[2] and not (bear_og or bear_og[1]))
+
+
+if bull_fvg
+    avg = math.avg(low, high[2])
+    
+    box.new(n-1, low, n, high[2], border_color = na, bgcolor = fvg_color)
+    
+if bear_fvg
+    avg = math.avg(low[2], high)
+
+    box.new(n-1, low[2], n, high, border_color = na, bgcolor = fvg_color)
+
+
+//-----------------------------------------------------------------------------}
+//Volume profile
+//-----------------------------------------------------------------------------{
+float vp_HH = ta.highest(high, vp_lookback)
+float vp_LL = ta.lowest(low, vp_lookback)
+
+bool Bullish = vp_delta_type == 'Bullish'
+bool Bearish = vp_delta_type == 'Bearish'
+
+if barstate.islast
+    float vp_HL = (vp_HH - vp_LL) / vp_N_BARS
+    for j = 1 to vp_N_BARS + 1 by 1
+        array.set(vp_a_P, j - 1, vp_LL + vp_HL * j)
+    for i = 0 to vp_lookback - 1 by 1
+        int Dc = 0
+        array.fill(vp_a_D, 0.0)
+        for j = 0 to vp_N_BARS - 1 by 1
+            float Pj = array.get(vp_a_P, j)
+            if low[i] < Pj and high[i] > Pj and (Bullish ? close[i] >= open[i] : Bearish ? close[i] <= open[i] : true)
+                float Dj = array.get(vp_a_D, j)
+                float dDj = Dj + nz(volume[i])
+                array.set(vp_a_D, j, dDj)
+                Dc := Dc + 1
+                Dc
+        for j = 0 to vp_N_BARS - 1 by 1
+            float Vj = array.get(vp_a_V, j)
+            float Dj = array.get(vp_a_D, j)
+            float dVj = Vj + (Dc > 0 ? Dj / Dc : 0.0)
+            array.set(vp_a_V, j, dVj)
+    vp_Vmax := array.max(vp_a_V)
+    vp_VmaxId := array.indexof(vp_a_V, vp_Vmax)
+    for j = 0 to vp_N_BARS - 1 by 1
+        float Vj = array.get(vp_a_V, j)
+        int Aj = math.round(vp_bar_mult * Vj / vp_Vmax)
+        array.set(vp_a_W, j, Aj)
+
+// Plot
+
+if barstate.isfirst
+    vp_first := time
+    vp_first
+vp_change = ta.change(time)
+vp_x_loc = timenow + math.round(vp_change * vp_bar_offset)
+
+f_setup_bar(n) =>
+    x1 = vp_VmaxId == n and vp_poc_show ? math.max(time[vp_lookback], vp_first) : timenow + math.round(vp_change * (vp_bar_offset - array.get(vp_a_W, n)))
+    ys = array.get(vp_a_P, n)
+    line.new(x1=x1, y1=ys, x2=vp_x_loc, y2=ys, xloc=xloc.bar_time, extend=extend.none, color=vp_VmaxId == n ? vp_poc_color : vp_bar_color, style=line.style_solid, width=vp_bar_width)
+
+if show_vp
+    if barstate.islast
+        for i = 0 to vp_N_BARS - 1 by 1
+            f_setup_bar(i)
+
+
+
+// There are parts of the code that are from @LuxAlgo and @francrypto, thank you for sharing your codes with the community.
